@@ -24,12 +24,13 @@
 3.	Create bitmap image of drawing 
 
 #### Runtimes
-	Test Name		Execution Time
-1.	Siggraph		?
-2.	Table			?
-3.	Spheres			?
-4. 	Simple 1		?
-5.	Simple 2		?
+| Test Name        | Execution Time          
+| ------------- |:-------------:| 
+| Siggraph      | ? | 
+| Table      | ?      |  
+| Spheres | ?      |  
+| Simple 1 | ?      |  
+| Simple 2 | ?      |  
 
 ---
 
@@ -50,12 +51,15 @@
 3. Create a bitmap image of the drawing by communicating all the calculated pixel values to process 0.
 
 ### Runtimes
-	Test Name		Execution Time
-1.	Siggraph		?
-2.	Table			?
-3.	Spheres			?
-4. 	Simple 1		?
-5.	Simple 2		?
+
+| Test Name        | Execution Time          
+| ------------- |:-------------:| 
+| Siggraph      | ? | 
+| Table      | ?      |  
+| Spheres | ?      |  
+| Simple 1 | ?      |  
+| Simple 2 | ?      |  
+
 
 ---
 
@@ -64,10 +68,12 @@
 
 
 ### Runtimes:
-	Test Name		Execution Time
-1.	Siggraph		?
-2.	Table			?
-3.	Spheres			?
-4. 	Simple 1		?
-5.	Simple 2		?
+
+| Test Name        | Execution Time          
+| ------------- |:-------------:| 
+| Siggraph      | ? | 
+| Table      | ?      |  
+| Spheres | ?      |  
+| Simple 1 | ?      |  
+| Simple 2 | ?      |  
 
