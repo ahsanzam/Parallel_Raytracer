@@ -1,10 +1,12 @@
-#EE 451 Course Project
-##Parallel Ray Tracing
-###Group: James Lee, Darwin Mendyke, Ahsan Zaman
+## EE 451 Course Project
+### Parallel Ray Tracing
+
+#### Group: James Lee, Darwin Mendyke, Ahsan Zaman
 
 ---
 
-##Pseudocode for serial implementation:
+### Serial implementation:
+#### Pseudocode:
 1.	Load and parse text file. 
 2.	Draw scene using raytracing algorithm 
 	a. For each pixel call tracer function:
@@ -21,7 +23,7 @@
 	b.	
 3.	Create bitmap image of drawing 
 
-###Runtimes
+#### Runtimes
 	Test Name		Execution Time
 1.	Siggraph		?
 2.	Table			?
@@ -31,7 +33,8 @@
 
 ---
 
-##Pseudocode for parallel implementation:
+### Parallel implementation:
+#### Pseudocode:
 1.	Load and parse text file. 
 2.	Draw scene using raytracing algorithm 
 	a. For each pixel, create a thread. Divide threads among processors available and call tracer function:
@@ -46,7 +49,7 @@
 			3.	Sum and return total illumination for the point.
 3. Create a bitmap image of the drawing by communicating all the calculated pixel values to process 0.
 
-###Runtimes
+### Runtimes
 	Test Name		Execution Time
 1.	Siggraph		?
 2.	Table			?
@@ -56,10 +59,11 @@
 
 ---
 
-##Pseudocode for GPU implementation:
+### GPU implementation:
+#### Pseudocode:
 
 
-###Runtimes:
+### Runtimes:
 	Test Name		Execution Time
 1.	Siggraph		?
 2.	Table			?
