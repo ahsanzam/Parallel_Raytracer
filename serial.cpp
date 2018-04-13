@@ -520,7 +520,7 @@ int main (int argc, char ** argv)
   draw_scene(drawing);
   if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}   
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
-  printf("Execution time: %f seconds.\n",time);
+  printf("Execution time for %s: %f seconds.\n",fileToRead, time);
 
   make_bitmap(drawing, fileToWrite);
 }
