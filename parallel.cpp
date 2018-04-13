@@ -1,7 +1,7 @@
 /*
 EE 451
-Course Project: Raytracer 
-Serial Version
+Course Project: Raytracer
+Parallel Version
 
 Names: James Lee, Darwin Mendyke, Ahsan Zaman
 */
@@ -300,7 +300,7 @@ void draw_scene(double*** result)
       result[x][y] = new double[3]{255*color[0],255*color[1],255*color[2]};
     }
   }
-  // printf("Done!\n"); 
+  // printf("Done!\n");
   fflush(stdout);
   done = true;
 }
@@ -444,7 +444,7 @@ void make_bitmap(double*** rgbVals, char* fileToWrite)
   BITMAPINFOHEADER bih;
 
   /* Magic number for file. It does not fit in the header structure due to alignment requirements, so put it outside */
-  unsigned short bfType=0x4d42;           
+  unsigned short bfType=0x4d42;
   bfh.bfReserved1 = 0;
   bfh.bfReserved2 = 0;
   bfh.bfSize = 2+sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)+640*480*3;
@@ -477,7 +477,7 @@ void make_bitmap(double*** rgbVals, char* fileToWrite)
   /*Write bitmap*/
   for (int y=0; y<bih.biHeight; y++)
       {
-      for (int x = 0; x < bih.biWidth; x++) 
+      for (int x = 0; x < bih.biWidth; x++)
           {
           /*compute some pixel values*/
           unsigned char r = rgbVals[x][y][0];
@@ -495,7 +495,7 @@ inline bool exists_file(char* name){
   if(FILE *file = fopen(name, "r")){
       fclose(file);
       return true;
-  } 
+  }
   else return false;
 }
 
@@ -506,7 +506,7 @@ int main (int argc, char ** argv)
     exit(0);
   }
   char* fileToRead = argv[1];
-  char* fileToWrite = argv[2]; 
+  char* fileToWrite = argv[2];
 
   if(!exists_file(fileToRead)){
     cout << "Input file does not exist.\n" << endl;
@@ -514,14 +514,14 @@ int main (int argc, char ** argv)
   }
 
   loadScene(fileToRead);
-  double*** drawing = new double**[WIDTH]; 
+  double*** drawing = new double**[WIDTH];
 
   //measure how long it takes to render the image
   double time;
   struct timespec start, stop;
   if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
   draw_scene(drawing);
-  if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}   
+  if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
   printf("Execution time: %f seconds.\n",time);
 
