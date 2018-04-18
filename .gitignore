@@ -1,3 +1,7 @@
+#ignore all then un-ignore files with extensions (to ensure that compiled binaries aren't pushed)
+*
+!*.*
+
 # Prerequisites
 *.d
 
@@ -33,3 +37,6 @@
 
 # BMP Image Files
 *.bmp
+
+# DS Store Mac File attributes file
+*.DS_Store
