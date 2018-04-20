@@ -33,4 +33,4 @@ clean:
 	-rm -rf core *.o *~ "#"*"#" serial gpu parallel
 
 	# for testing:
-# for number in {1..640}; do mpirun mpi tests/table.txt table_mpi.bmp $number; done
+# for number in {1..96}; do mpirun mpi tests/spheres.txt spheres.bmp $number; done
