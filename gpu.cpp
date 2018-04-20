@@ -1,7 +1,7 @@
 /*
 EE 451
-Course Project: Raytracer 
-Serial Version
+Course Project: Raytracer
+GPU Version
 
 Names: James Lee, Darwin Mendyke, Ahsan Zaman
 */
@@ -440,7 +440,7 @@ void make_bitmap(double*** rgbVals)
   BITMAPINFOHEADER bih;
 
   /* Magic number for file. It does not fit in the header structure due to alignment requirements, so put it outside */
-  unsigned short bfType=0x4d42;           
+  unsigned short bfType=0x4d42;
   bfh.bfReserved1 = 0;
   bfh.bfReserved2 = 0;
   bfh.bfSize = 2+sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)+640*480*3;
@@ -473,7 +473,7 @@ void make_bitmap(double*** rgbVals)
   /*Write bitmap*/
   for (int y=0; y<bih.biHeight; y++)
       {
-      for (int x = 0; x < bih.biWidth; x++) 
+      for (int x = 0; x < bih.biWidth; x++)
           {
           /*compute some pixel values*/
           unsigned char r = rgbVals[x][y][0];
@@ -499,14 +499,14 @@ int main (int argc, char ** argv)
     printf ("usage: %s <scenefile> [bmp_name]\n", argv[0]);
     exit(0);
   }
-  filename = argv[1]; 
+  filename = argv[1];
   if(!file_exists(filename)){
     cout << "Input file does not exist." << endl;
     exit(0);
   }
 
   loadScene(filename);
-  double*** drawing = new double**[WIDTH]; 
+  double*** drawing = new double**[WIDTH];
 
   //measure how long it takes to render the image
   struct timespec start, stop;
@@ -514,7 +514,7 @@ int main (int argc, char ** argv)
 
   draw_scene(drawing);
 
-  if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}   
+  if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
   double time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
   printf("Execution time: %f seconds.\n",time);
 

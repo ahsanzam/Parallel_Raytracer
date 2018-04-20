@@ -1,7 +1,7 @@
 /*
 EE 451
-Course Project: Raytracer 
-Serial Version
+Course Project: Raytracer
+Parallel Version
 
 Names: James Lee, Darwin Mendyke, Ahsan Zaman
 */
@@ -310,8 +310,13 @@ void draw_scene(double*** result)
     }
 
   }
+<<<<<<< HEAD
   // printf("Done!\n"); 
   // fflush(stdout);
+=======
+  // printf("Done!\n");
+  fflush(stdout);
+>>>>>>> 53082bfc7369483c355967d84323d98e17ac5487
   done = true;
 }
 void parse_check(char *expected,char *found)
@@ -454,7 +459,7 @@ void make_bitmap(double*** rgbVals, char* fileToWrite)
   BITMAPINFOHEADER bih;
 
   /* Magic number for file. It does not fit in the header structure due to alignment requirements, so put it outside */
-  unsigned short bfType=0x4d42;           
+  unsigned short bfType=0x4d42;
   bfh.bfReserved1 = 0;
   bfh.bfReserved2 = 0;
   bfh.bfSize = 2+sizeof(BITMAPFILEHEADER) + sizeof(BITMAPINFOHEADER)+640*480*3;
@@ -485,7 +490,7 @@ void make_bitmap(double*** rgbVals, char* fileToWrite)
   /*Write bitmap*/
   for (int y=0; y<bih.biHeight; y++)
       {
-      for (int x = 0; x < bih.biWidth; x++) 
+      for (int x = 0; x < bih.biWidth; x++)
           {
           /*compute some pixel values*/
           unsigned char r = rgbVals[x][y][0];
@@ -503,7 +508,7 @@ inline bool exists_file(char* name){
   if(FILE *file = fopen(name, "r")){
       fclose(file);
       return true;
-  } 
+  }
   else return false;
 }
 
@@ -514,14 +519,14 @@ int main (int argc, char ** argv)
     exit(0);
   }
   char* fileToRead = argv[1];
-  char* fileToWrite = argv[2]; 
+  char* fileToWrite = argv[2];
 
   if(!exists_file(fileToRead)){
     cout << "Input file does not exist.\n" << endl;
     exit(0);
   }
   loadScene(fileToRead);
-  double*** drawing = new double**[WIDTH]; 
+  double*** drawing = new double**[WIDTH];
 
   
   double time;
