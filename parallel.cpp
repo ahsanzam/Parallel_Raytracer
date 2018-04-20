@@ -310,13 +310,7 @@ void draw_scene(double*** result)
     }
 
   }
-<<<<<<< HEAD
-  // printf("Done!\n"); 
-  // fflush(stdout);
-=======
-  // printf("Done!\n");
   fflush(stdout);
->>>>>>> 53082bfc7369483c355967d84323d98e17ac5487
   done = true;
 }
 void parse_check(char *expected,char *found)
