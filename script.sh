@@ -1,21 +1,26 @@
 #!/bin/sh
-#SBATCH --time=00:15:00
 
-programs = ("serial" "parallel" "gpu")
-tests=`ls $SLURM_SUBMIT_DIR/tests/*`
-#SBATCH -job-name=course_project
-#SBATCH --output=output/$0_$1.out
+#SBATCH --job-name="course_project"
 #SBATCH --time=1:00:00
-#SBATCH --error=output/$0_$1.error
-#SBATCH -ntasks=8
 
-for program in "${programs[@]}"
-do
-	nodes=0
-	for test in "${tests[@]}"
-	do
-		srun -N=$nodes -n1 --exclusive $program $test "${program}_${test}.bmp"
-	done
-done
+# programs=("serial" "parallel" "gpu")
+# tests=(tests/*)
+# for program in "${programs[@]}"
+# do
+# 	nodes=1
+# 	tasksPerNode=1
+# 	gpu=0
+# 	for test in "${tests[@]}"
+# 	do
+# 		srun \
+# 			--nodes=$nodes \
+# 			--ntasks-per-node=$tasksPerNode \
+# 			--gres=gpu:$gpu \
+# 			--error="${program}_${test}.error" \
+# 			--output="${program}_${test}.out" \
+# 			$program $test "${program}_${test}.bmp"
+# 	done
+# done
 
 
+srun --error="parallel.error" --output="parallel.out" parallel tests/table.txt parallel_test.bmp

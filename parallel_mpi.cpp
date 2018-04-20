@@ -13,7 +13,7 @@ Names: James Lee, Darwin Mendyke, Ahsan Zaman
 #include <vector>
 #include <string.h>
 #include <time.h>
-#include <omp.h>
+#include <mpi.h>
 using namespace std;
 
 #define MAX_TRIANGLES 2000
@@ -23,6 +23,8 @@ using namespace std;
 char *filename=0;
 
 bool done = false;
+int num_processes;
+
 
 //you may want to make these smaller for debugging purposes
 #define WIDTH 640
@@ -32,6 +34,7 @@ bool done = false;
 #define fov 60.0
 
 unsigned char buffer[HEIGHT][WIDTH][3];
+int mpi_size, mpi_rank; //for mpi use
 
 struct Vertex
 {
@@ -283,35 +286,21 @@ vector<double> trace(double o[3], double d[3], int num)
 }
 
 // Iterates through each pixel on the window and generates a ray, which it passes to the tracer function
-void draw_scene(double*** result)
+void draw_scene(double** resultR,double** resultG,double** resultB)
 {
   unsigned int x;
   double focalLength = 0.5 * WIDTH * sqrt(3) * 0.75;
   double origin[3] = {0, 0, 0};
-
-  // #ifdef _OPENMP
-  //   omp_lock_t result_lock;
-  //   omp_init_lock(&result_lock);
-  // #endif
-  // int num_threads = WIDTH;
-  #pragma omp parallel //num_threads(num_threads)
-  {
-    // printf("%d ", omp_get_num_threads());
-    // printf("here");
-    #pragma omp for //schedule(dynamic, WIDTH/num_threads)
-    for(x=0; x<WIDTH; x++){
-      result[x] = new double*[HEIGHT];
-      for(int y=0;y < HEIGHT;y++){
-        double direction[3] = {x - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
-        normalize(direction);
-        vector<double> color = trace(origin, direction, 0);
-        result[x][y] = new double[3]{255*color[0],255*color[1],255*color[2]};
-      }
+  for(x=0; x<ceil(WIDTH/num_processes); x++){
+    for(int y=0;y < HEIGHT;y++){
+      double direction[3] = {x - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
+      normalize(direction);
+      vector<double> color = trace(origin, direction, 0);
+      resultR[x][y] = 255*color[0];
+      resultG[x][y] = 255*color[1];
+      resultB[x][y] = 255*color[2];
     }
-
   }
-  // printf("Done!\n"); 
-  // fflush(stdout);
   done = true;
 }
 void parse_check(char *expected,char *found)
@@ -425,7 +414,7 @@ int loadScene(char *argv)
   fclose(file);
   return 0;
 }
-void make_bitmap(double*** rgbVals, char* fileToWrite)
+void make_bitmap(double** rgbValsR, double** rgbValsG, double** rgbValsB, char* fileToWrite)
 {
   typedef struct                       /**** BMP file header structure ****/
       {
@@ -478,19 +467,21 @@ void make_bitmap(double*** rgbVals, char* fileToWrite)
       printf("Could not write file\n");
       return;
       }
+
   /*Write headers*/
   fwrite(&bfType,1,sizeof(bfType),file);
   fwrite(&bfh, 1, sizeof(bfh), file);
   fwrite(&bih, 1, sizeof(bih), file);
+
   /*Write bitmap*/
   for (int y=0; y<bih.biHeight; y++)
       {
       for (int x = 0; x < bih.biWidth; x++) 
           {
           /*compute some pixel values*/
-          unsigned char r = rgbVals[x][y][0];
-          unsigned char g = rgbVals[x][y][1];
-          unsigned char b = rgbVals[x][y][2];
+          unsigned char r = rgbValsR[x][y];
+          unsigned char g = rgbValsG[x][y];
+          unsigned char b = rgbValsB[x][y];
           fwrite(&b, 1, 1, file);
           fwrite(&g, 1, 1, file);
           fwrite(&r, 1, 1, file);
@@ -507,6 +498,43 @@ inline bool exists_file(char* name){
   else return false;
 }
 
+//function to gather all calculated vals from processors 1-num_processes to processor 0
+void gather_image(double** drawingR, double** drawingG, double** drawingB, double** drawingR_, double** drawingG_, double** drawingB_){
+  int rowsPerProcessor = ceil(WIDTH/num_processes);
+  int valCount = rowsPerProcessor*HEIGHT; //gives the total pixels each processor created
+  
+  //send to processor 0
+  if( mpi_rank != 0 && mpi_rank < num_processes ){
+    MPI_Send(&(drawingR[0][0]), valCount, MPI_DOUBLE, 0, 0, MPI_COMM_WORLD);
+    MPI_Send(&(drawingG[0][0]), valCount, MPI_DOUBLE, 0, 1, MPI_COMM_WORLD);
+    MPI_Send(&(drawingB[0][0]), valCount, MPI_DOUBLE, 0, 2, MPI_COMM_WORLD);
+  }
+  //receive and compile arrays on processor 0
+  else {
+    for(int i=0; i<(int)ceil(WIDTH/num_processes); i++){
+      for(int j=0; j<HEIGHT; j++){
+        drawingR_[i][j] = drawingR[i][j];
+        drawingG_[i][j] = drawingG[i][j];
+        drawingB_[i][j] = drawingB[i][j];
+      }
+    }
+    for(int i=1; i<num_processes; i++){
+      MPI_Recv(&(drawingR_[(int)(i*rowsPerProcessor)][0]), valCount, MPI_DOUBLE, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&(drawingG_[(int)(i*rowsPerProcessor)][0]), valCount, MPI_DOUBLE, i, 1, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&(drawingB_[(int)(i*rowsPerProcessor)][0]), valCount, MPI_DOUBLE, i, 2, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    }
+  }
+
+}
+
+double **alloc_2d_int(int rows, int cols) {
+    double *data = (double *)malloc(rows*cols*sizeof(double));
+    double **array= (double **)malloc(rows*sizeof(double*));
+    for (int i=0; i<rows; i++)
+        array[i] = &(data[cols*i]);
+
+    return array;
+}
 int main (int argc, char ** argv)
 {
   if (argc<3 || argc > 3){
@@ -520,20 +548,53 @@ int main (int argc, char ** argv)
     cout << "Input file does not exist.\n" << endl;
     exit(0);
   }
+  MPI_Init(&argc, &argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &mpi_size);
+  MPI_Comm_rank(MPI_COMM_WORLD,&mpi_rank);
+
+
   loadScene(fileToRead);
-  double*** drawing = new double**[WIDTH]; 
+  if(mpi_size < WIDTH) num_processes = mpi_size; 
+  else num_processes = WIDTH;
 
-  
-  double time;
-  struct timespec start, stop;
 
+  //initialize rgb arrays
+  double** drawingR = alloc_2d_int(WIDTH/num_processes, HEIGHT);
+  double** drawingG = alloc_2d_int(WIDTH/num_processes, HEIGHT);
+  double** drawingB = alloc_2d_int(WIDTH/num_processes, HEIGHT);
+  double** drawingR_;
+  double** drawingG_;
+  double** drawingB_;
+  if( mpi_rank == 0 ){
+    drawingR_ = alloc_2d_int(WIDTH, HEIGHT);
+    drawingG_ = alloc_2d_int(WIDTH, HEIGHT);
+    drawingB_ = alloc_2d_int(WIDTH, HEIGHT);
+  }
   //measure how long it takes to render the image
-  if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
-  draw_scene(drawing);
-  if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");} 
+  double start, end, time;
+  start = MPI_Wtime();
 
-  time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
-  printf("Execution time for %s: %f seconds.\n",fileToRead, time);
-  make_bitmap(drawing, fileToWrite); 
+  //draw a fraction of the image 
+  if(mpi_rank < WIDTH) draw_scene(drawingR,drawingG,drawingB); 
+
+  //perform gather to compile image
+  gather_image(drawingR, drawingG, drawingB, drawingR_, drawingG_, drawingB_); 
+
+  end = MPI_Wtime();
+  time = end - start;
+
+  if( mpi_rank == 0 ){ //print time spent on operation
+    printf("Execution time for %s: %f seconds with %d processors.\n",fileToRead, time, mpi_size);
+    make_bitmap(drawingR_, drawingG_, drawingB_, fileToWrite);
+  }
+
+  delete [] drawingR;
+  delete [] drawingG;
+  delete [] drawingB; 
+  delete [] drawingR_; 
+  delete [] drawingG_; 
+  delete [] drawingB_;
+
+  MPI_Finalize();
   return 0;
 }
