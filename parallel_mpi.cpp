@@ -291,9 +291,11 @@ void draw_scene(double** resultR,double** resultG,double** resultB)
   unsigned int x;
   double focalLength = 0.5 * WIDTH * sqrt(3) * 0.75;
   double origin[3] = {0, 0, 0};
+  int myXStart = mpi_rank * WIDTH/num_processes;
   for(x=0; x<ceil(WIDTH/num_processes); x++){
+    int currentX = x + myXStart;
     for(int y=0;y < HEIGHT;y++){
-      double direction[3] = {x - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
+      double direction[3] = {currentX - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
       normalize(direction);
       vector<double> color = trace(origin, direction, 0);
       resultR[x][y] = 255*color[0];
@@ -537,8 +539,8 @@ double **alloc_2d_int(int rows, int cols) {
 }
 int main (int argc, char ** argv)
 {
-  if (argc<3 || argc > 3){
-    printf ("usage: %s <scenefile> <bmp_name>\n", argv[0]);
+  if (argc<3 || argc > 4){
+    printf ("usage: %s <scenefile> <bmp_name> <processors_to_use>\n", argv[0]);
     exit(0);
   }
   char* fileToRead = argv[1];
@@ -554,9 +556,25 @@ int main (int argc, char ** argv)
 
 
   loadScene(fileToRead);
-  if(mpi_size < WIDTH) num_processes = mpi_size; 
-  else num_processes = WIDTH;
 
+  //set number of processors to use 
+  if(argc == 4){
+    int desiredNumProcessors = atoi(argv[3]);
+    if(desiredNumProcessors > WIDTH || desiredNumProcessors > mpi_size){
+      printf("Current configuration supports a maximum of %d processors.",mpi_size);
+      num_processes = (mpi_size < WIDTH) ? mpi_size : WIDTH;
+    }
+    else num_processes = desiredNumProcessors;
+  }
+  else{
+    num_processes = (mpi_size < WIDTH) ? mpi_size : WIDTH;
+  }
+
+  //get rid of processors that we're not using 
+  if(mpi_rank >= num_processes){
+    MPI_Finalize();
+    return 0;
+  }
 
   //initialize rgb arrays
   double** drawingR = alloc_2d_int(WIDTH/num_processes, HEIGHT);
@@ -584,16 +602,18 @@ int main (int argc, char ** argv)
   time = end - start;
 
   if( mpi_rank == 0 ){ //print time spent on operation
-    printf("Execution time for %s: %f seconds with %d processors.\n",fileToRead, time, mpi_size);
+    printf("Execution time for %s: %f seconds with %d processors.\n",fileToRead, time, num_processes);
     make_bitmap(drawingR_, drawingG_, drawingB_, fileToWrite);
   }
 
   delete [] drawingR;
   delete [] drawingG;
   delete [] drawingB; 
-  delete [] drawingR_; 
-  delete [] drawingG_; 
-  delete [] drawingB_;
+  if( mpi_rank == 0){
+    delete [] drawingR_; 
+    delete [] drawingG_; 
+    delete [] drawingB_;
+  }
 
   MPI_Finalize();
   return 0;
