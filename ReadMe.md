@@ -22,13 +22,12 @@
 3. Create bitmap image of drawing
 
 #### Runtimes
+
 | Test Name        | Execution Time          
 | ------------- |:-------------:| 
-| Siggraph      | ? | 
-| Table      | ?      |  
-| Spheres | ?      |  
-| Simple 1 | ?      |  
-| Simple 2 | ?      |  
+| Spheres | 0.969888 |
+| Table      | 12.51482 |
+| Siggraph      | 130.153463 |
 
 ---
 
@@ -50,15 +49,12 @@
 3. Create bitmap image of drawing
 
 ### Runtimes
-
-| Test Name        | Execution Time          
-| ------------- |:-------------:| 
-| Siggraph      | ? | 
-| Table      | ?      |  
-| Spheres | ?      |  
-| Simple 1 | ?      |  
-| Simple 2 | ?      |  
-
+##### Spheres Test Results 
+![Spheres Results](https://github.com/ahsanzam/Parallel_Raytracer/blob/master/Results/spheres_mpi_results.png)
+##### Table Test Results 
+![Table Results](https://github.com/ahsanzam/Parallel_Raytracer/blob/master/Results/tables_mpi_results.png)
+##### Siggraph Test Results 
+![Siggraph Results](https://github.com/ahsanzam/Parallel_Raytracer/blob/master/Results/siggraph_mpi_results.png)
 
 ---
 
