@@ -3,6 +3,31 @@
 
 #### Group: James Lee, Darwin Mendyke, Ahsan Zaman
 
+
+# To run MPI Program:
+1. Run setup script
+	`source /usr/usc/openmpi/1.8.8/setup.sh`
+2. Make MPI program
+	`make mpi`
+3. Request n nodes from HPC (usually ~4-6 nodes is sufficient)
+	For Infiniband test: `salloc -N <n> --constraint=IB sh` 
+	For Myrinet test: `salloc -N <n> --constraint=myri sh`
+4. Once you are given the requested resources, iteratively run program 80 times using the corresponding number of processors:
+	`for number in {1..80}; 
+		do 
+			mpirun mpi tests/<testfile> <testfile>.bmp $number; 
+		done`
+### To run GPU program:
+1. Run setup script 
+	`source /usr/usc/cuda/default/setup.sh`
+2. Make GPU program
+	`make gpu`
+2. Request 1 gpu core from HPC
+	`salloc -gres=gpu:<number> sh`
+3. Run program
+	gpu <inputfile> <outputfile>
+
+
 ---
 
 ### Serial implementation:
