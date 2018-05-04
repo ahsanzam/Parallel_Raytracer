@@ -13,6 +13,7 @@ Names: James Lee, Darwin Mendyke, Ahsan Zaman
 #include <vector>
 #include <string.h>
 #include <time.h>
+
 using namespace std;
 
 #define MAX_TRIANGLES 2000
@@ -21,7 +22,7 @@ using namespace std;
 
 char *filename=0;
 
-bool done = false;
+//bool done = false;
 
 //you may want to make these smaller for debugging purposes
 #define WIDTH 640
@@ -61,20 +62,17 @@ typedef struct _Light
   double color[3];
 } Light;
 
-Triangle triangles[MAX_TRIANGLES];
-Sphere spheres[MAX_SPHERES];
-Light lights[MAX_LIGHTS];
-double ambient_light[3];
+__device__ Triangle triangles[MAX_TRIANGLES];
+__device__ Sphere spheres[MAX_SPHERES];
+__device__ Light lights[MAX_LIGHTS];
+__device__ double ambient_light[3];
 
-int num_triangles=0;
-int num_spheres=0;
-int num_lights=0;
-
-void plot_pixel_display(int x,int y,unsigned char r,unsigned char g,unsigned char b);
-void plot_pixel_jpeg(int x,int y,unsigned char r,unsigned char g,unsigned char b);
-void plot_pixel(int x,int y,unsigned char r,unsigned char g,unsigned char b);
+__device__ int num_triangles=0;
+__device__ int num_spheres=0;
+__device__ int num_lights=0;
 
 // Helper function to normalize a given vecter to a certain length, typically 1
+__device__
 void normalize(double p[3])
 {
    double distance = fmax(sqrt(pow(p[0], 2.0) + pow(p[1], 2.0) + pow(p[2], 2.0)), 0.001);
@@ -83,25 +81,22 @@ void normalize(double p[3])
    p[2] = p[2] / distance;
 }
 
-// Helper function to print out values of a length three array, used for debugging
-void printV(string s, double v[3])
-{
-   cout << s << ": " << v[0] << " " << v[1] << " " << v[2] << endl;
-}
-
 // Vector arithmitec function to perform vector subtraction
+__device__
 void subtract(double v0[3], double v1[3], double result[3])
 {
    for (int i = 0; i < 3; i++) result[i] = v0[i] - v1[i];
 }
 
 // Vector arithmitec function to perform vector multiplication
+__device__
 void multiply(double v[3], double s, double result[3])
 {
    for (int i = 0; i < 3; i++) result[i] = v[i] * s;
 }
 
 // Vector arithmitec function to calculate the vector cross product
+__device__
 void cross(double v0[3], double v1[3], double result[3])
 {
    result[0] = (v0[1] * v1[2]) - (v1[1] * v0[2]);
@@ -110,6 +105,7 @@ void cross(double v0[3], double v1[3], double result[3])
 }
 
 // Vector arithmitec function to calculate the vector dot product
+__device__
 double dot(double v0[3], double v1[3])
 {
    return (v0[0] * v1[0]) + (v0[1] * v1[1]) + (v0[2] * v1[2]);
@@ -117,6 +113,7 @@ double dot(double v0[3], double v1[3])
 
 // Helper function to compare distances between two points relative to the origin.
 // Sets inter with the closer point
+__device__
 bool compDistances(double o[3], double (&inter)[3], double (&newInter)[3])
 {
    double a[3] = {inter[0] - o[0], inter[1] - o[1], inter[2] - o[2]};
@@ -131,6 +128,7 @@ bool compDistances(double o[3], double (&inter)[3], double (&newInter)[3])
 
 // Given a sphere and a ray, determines if there is an intersection.
 // If so, stores the coords of the intersection
+__device__
 bool intersectsSphere(Sphere sphere, double o[3], double d[3], double (&intersection)[3])
 {
    double a = 1.0;
@@ -147,9 +145,8 @@ bool intersectsSphere(Sphere sphere, double o[3], double d[3], double (&intersec
    return false;
 }
 
-// https://www.scratchapixel.com/lessons/3d-basic-rendering/ray-tracing-rendering-a-triangle/moller-trumbore-ray-triangle-intersection
 // Given a triangle shape and a ray, determines if there is an intersection, using examples from the above link
-// If so, stores the coords of the intersection, and the barycentric coordinates of the intersection point
+__device__
 bool intersectsTriangle(Triangle triangle, double o[3], double d[3], double (&intersection)[3], double (&bcoords)[3])
 {
    double v0v1[3], v0v2[3], pvec[3], tvec[3], qvec[3], t, u, v;
@@ -186,7 +183,8 @@ bool intersectsTriangle(Triangle triangle, double o[3], double d[3], double (&in
 
 
 // Recursive function to perform ray tracing given a ray.
-vector<double> trace(double o[3], double d[3], int num)
+__device__
+double* trace(double o[3], double d[3], int num)
 {
    bool intersectTriangle = false, intersectSphere = false;
    double bcoords[3], other1[3], intersection[3] = {1000.0, 1000.0, 1000.0};
@@ -197,9 +195,12 @@ vector<double> trace(double o[3], double d[3], int num)
    for (int i = 0; i < num_spheres; i++) if (intersectsSphere(spheres[i], o, d, intersection)) intersectSphere = true, index = i;
 
    // returns background color if no intersections or if reach max recursive call
-   if ((!intersectTriangle && !intersectSphere) || num > 2) return {1.0, 1.0, 1.0};
+   if ((!intersectTriangle && !intersectSphere) || num > 2){
+    double x__[3] = {1.0, 1.0, 1.0};
+    return x__;
+  }
 
-   vector<double> illumination = {ambient_light[0], ambient_light[1], ambient_light[2]};
+   double illumination[3] = {ambient_light[0], ambient_light[1], ambient_light[2]};
    double l[3], n[3], n1[3], v[3], r[3], recursive_r[3], diffuse[3], specular[3], shiny;
 
    // iterates through each light in the scene
@@ -271,41 +272,44 @@ vector<double> trace(double o[3], double d[3], int num)
    subtract(n1, v, recursive_r);
    double recursiveOrigin[3] = {intersection[0] + 0.01 * recursive_r[0], intersection[1] + 0.01 * recursive_r[1], intersection[2] + 0.01 * recursive_r[2]};
    normalize(recursive_r);
-   vector<double> reflectedIllumination = trace(recursiveOrigin, recursive_r, ++num);
-   vector<double> totalIllumination;
+   double* reflectedIllumination = trace(recursiveOrigin, recursive_r, ++num);
+   double totalIllumination[3];
    for (int i = 0; i < 3; i++)
    {
-      totalIllumination.push_back((1 - specular[i]) * illumination[i] + specular[i] * reflectedIllumination[i]);
+      totalIllumination[i] = (1 - specular[i]) * illumination[i] + specular[i] * reflectedIllumination[i];
    }
 
    return {totalIllumination};
 }
 
 // Iterates through each pixel on the window and generates a ray, which it passes to the tracer function
-void draw_scene(double*** result)
+__global__
+void draw_scene(double* result)
 {
-  unsigned int x,y;
-  double focalLength = 0.5 * WIDTH * sqrt(3) * 0.75;
+  // unsigned int x,y;
+  double focalLength = 0.5 * WIDTH * sqrt(3.0) * 0.75;
   double origin[3] = {0, 0, 0};
   //simple output
-  for(x=0; x<WIDTH; x++){
-    result[x] = new double*[HEIGHT];
-    for(y=0;y < HEIGHT;y++){
-      double direction[3] = {x - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
-      normalize(direction);
-      vector<double> color = trace(origin, direction, 0);
-      result[x][y] = new double[3]{255*color[0],255*color[1],255*color[2]};
-    }
-  }
+  // for(x=0; x<WIDTH; x++){
+  //   result[x] = new double*[HEIGHT];
+    // for(y=0;y < HEIGHT;y++){
+  int x = threadIdx.x + blockIdx.x * blockDim.x;
+  int y = threadIdx.y + blockIdx.y * blockDim.y;
+  double direction[3] = {x - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
+  normalize(direction);
+  double * color = trace(origin, direction, 0);
+  result = new double[3]{255*color[0],255*color[1],255*color[2]};
+    // }
+  // }
   // printf("Done!\n");
-  fflush(stdout);
-  done = true;
+  //fflush(stdout);
+  //done = true;
 }
 void parse_check(char *expected,char *found)
 {
   if(strcasecmp(expected,found))
     {
-      char error[100];
+      // char error[100];
       printf("Expected '%s ' found '%s '\n",expected,found);
       printf("Parse error, abnormal abortion\n");
       exit(0);
@@ -352,7 +356,7 @@ int loadScene(char *argv)
   fscanf(file,"%i",&number_of_objects);
 
   // printf("number of objects: %i\n",number_of_objects);
-  char str[200];
+  // char str[200];
 
   parse_doubles(file,(char *)"amb:",ambient_light);
 
@@ -511,20 +515,20 @@ int main (int argc, char ** argv)
   }
 
   loadScene(fileToRead);
-  double*** drawing;
-	cudaMallocManaged(&drawing, WIDTH * sizeof(double));
+  double* drawing;
+	cudaMallocManaged(&drawing, sizeof(double));
 
   //measure how long it takes to render the image
   double time;
   struct timespec start, stop;
   if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
-  draw_scene(drawing);
+  draw_scene<<<1,HEIGHT*WIDTH>>>(drawing);
 	cudaDeviceSynchronize();
   if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
   printf("Execution time for %s: %f seconds.\n",fileToRead, time);
 
-  make_bitmap(drawing, fileToWrite);
+  // make_bitmap(drawing, fileToWrite);
   
 	cudaFree(drawing);
 
