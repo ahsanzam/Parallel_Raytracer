@@ -1,4 +1,4 @@
-EE 451 Course Project: Parallel Ray Tracing
+﻿EE 451 Course Project: Parallel Ray Tracing
 
 Group: James Lee, Darwin Mendyke, Ahsan Zaman
 
@@ -26,6 +26,6 @@ To run GPU program on HPC:
 2. Make GPU program
 	`make gpu`
 2. Request 1 gpu core from HPC
-	`salloc -gres=gpu:<number> sh`
+	`salloc --gres=gpu:<number> sh`
 3. Run program
 	gpu <inputfile> <outputfile>
