@@ -11,7 +11,7 @@ mpi:
 	mpiCC -std=c++11 -O3 -lm parallel_mpi.cpp -o mpi
 
 gpu:
-	nvcc -O3 -std=c++11 -Wno-deprecated-declarations gpu.cpp -o gpu
+	nvcc -std=c++11 gpu.cu -o gpu
 
 clean:
 	-rm -rf core *.o *~ "#"*"#" serial gpu parallel
