@@ -1,7 +1,7 @@
 /*
 EE 451
 Course Project: Raytracer
-GPU Version
+Serial Version
 
 Names: James Lee, Darwin Mendyke, Ahsan Zaman
 */
@@ -13,7 +13,6 @@ Names: James Lee, Darwin Mendyke, Ahsan Zaman
 #include <vector>
 #include <string.h>
 #include <time.h>
-#include <sys/stat.h>
 using namespace std;
 
 #define MAX_TRIANGLES 2000
@@ -298,7 +297,8 @@ void draw_scene(double*** result)
       result[x][y] = new double[3]{255*color[0],255*color[1],255*color[2]};
     }
   }
-  printf("Done!\n"); fflush(stdout);
+  // printf("Done!\n");
+  fflush(stdout);
   done = true;
 }
 void parse_check(char *expected,char *found)
@@ -319,7 +319,7 @@ void parse_doubles(FILE*file, char *check, double p[3])
   fscanf(file,"%s",str);
   parse_check(check,str);
   fscanf(file,"%lf %lf %lf",&p[0],&p[1],&p[2]);
-  printf("%s %lf %lf %lf\n",check,p[0],p[1],p[2]);
+  // printf("%s %lf %lf %lf\n",check,p[0],p[1],p[2]);
 }
 
 void parse_rad(FILE*file,double *r)
@@ -328,7 +328,7 @@ void parse_rad(FILE*file,double *r)
   fscanf(file,"%s",str);
   parse_check((char *)"rad:",str);
   fscanf(file,"%lf",r);
-  printf("rad: %f\n",*r);
+  // printf("rad: %f\n",*r);
 }
 
 void parse_shi(FILE*file,double *shi)
@@ -337,7 +337,7 @@ void parse_shi(FILE*file,double *shi)
   fscanf(file,"%s",s);
   parse_check((char *)"shi:",s);
   fscanf(file,"%lf",shi);
-  printf("shi: %f\n",*shi);
+  // printf("shi: %f\n",*shi);
 }
 
 int loadScene(char *argv)
@@ -351,7 +351,7 @@ int loadScene(char *argv)
   Light l;
   fscanf(file,"%i",&number_of_objects);
 
-  printf("number of objects: %i\n",number_of_objects);
+  // printf("number of objects: %i\n",number_of_objects);
   char str[200];
 
   parse_doubles(file,(char *)"amb:",ambient_light);
@@ -359,10 +359,10 @@ int loadScene(char *argv)
   for(i=0;i < number_of_objects;i++)
   {
     fscanf(file,"%s\n",type);
-    printf("%s\n",type);
+    // printf("%s\n",type);
     if(strcasecmp(type,"triangle")==0)
     {
-      printf("found triangle\n");
+      // printf("found triangle\n");
       int j;
       for(j=0;j < 3;j++)
       {
@@ -381,7 +381,7 @@ int loadScene(char *argv)
     }
     else if(strcasecmp(type,"sphere")==0)
     {
-      printf("found sphere\n");
+      // printf("found sphere\n");
       parse_doubles(file,(char *)"pos:",s.position);
       parse_rad(file,&s.radius);
       parse_doubles(file,(char *)"dif:",s.color_diffuse);
@@ -395,7 +395,7 @@ int loadScene(char *argv)
     }
     else if(strcasecmp(type,"light")==0)
     {
-      printf("found light\n");
+      // printf("found light\n");
       parse_doubles(file,(char *)"pos:",l.position);
       parse_doubles(file,(char *)"col:",l.color);
       if(num_lights == MAX_LIGHTS){
@@ -409,9 +409,10 @@ int loadScene(char *argv)
       exit(0);
     }
   }
+  fclose(file);
   return 0;
 }
-void make_bitmap(double*** rgbVals)
+void make_bitmap(double*** rgbVals, char* fileToWrite)
 {
   typedef struct                       /**** BMP file header structure ****/
       {
@@ -458,7 +459,7 @@ void make_bitmap(double*** rgbVals)
   bih.biClrUsed = 0;
   bih.biClrImportant = 0;
 
-  FILE *file = fopen(filename, "wb");
+  FILE *file = fopen(fileToWrite, "wb");
   if (!file)
       {
       printf("Could not write file\n");
@@ -487,37 +488,45 @@ void make_bitmap(double*** rgbVals)
   fclose(file);
 }
 
-inline bool file_exists(const std::string& name)
-{
-  ifstream f(name);
-  return f ? true:false;
+inline bool exists_file(char* name){
+  if(FILE *file = fopen(name, "r")){
+      fclose(file);
+      return true;
+  }
+  else return false;
 }
 
 int main (int argc, char ** argv)
 {
   if (argc<3 || argc > 3){
-    printf ("usage: %s <scenefile> [bmp_name]\n", argv[0]);
+    printf ("usage: %s <scenefile> <bmp_name>\n", argv[0]);
     exit(0);
   }
-  filename = argv[1];
-  if(!file_exists(filename)){
-    cout << "Input file does not exist." << endl;
+  char* fileToRead = argv[1];
+  char* fileToWrite = argv[2];
+
+  if(!exists_file(fileToRead)){
+    cout << "Input file does not exist.\n" << endl;
     exit(0);
   }
 
-  loadScene(filename);
-  double*** drawing = new double**[WIDTH];
+  loadScene(fileToRead);
+  double*** drawing;
+	cudaMallocManaged(&drawing, WIDTH * sizeof(double));
 
   //measure how long it takes to render the image
+  double time;
   struct timespec start, stop;
   if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
-
   draw_scene(drawing);
-
+	cudaDeviceSynchronize();
   if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
-  double time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
-  printf("Execution time: %f seconds.\n",time);
+  time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
+  printf("Execution time for %s: %f seconds.\n",fileToRead, time);
 
+  make_bitmap(drawing, fileToWrite);
+  
+	cudaFree(drawing);
 
-  make_bitmap(drawing);
+  // printf("Triangles: %d, Spheres: %d, lights: %d\n", num_triangles, num_spheres, num_lights);
 }
