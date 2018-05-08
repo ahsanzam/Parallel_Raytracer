@@ -411,7 +411,7 @@ int loadScene(char *argv)
   fclose(file);
   return 0;
 }
-void make_bitmap(double*** rgbVals, char* fileToWrite)
+void make_bitmap(double* rgbVals, char* fileToWrite)
 {
   typedef struct                       /**** BMP file header structure ****/
       {
@@ -476,9 +476,9 @@ void make_bitmap(double*** rgbVals, char* fileToWrite)
       for (int x = 0; x < bih.biWidth; x++)
           {
           /*compute some pixel values*/
-          unsigned char r = rgbVals[x][y][0];
-          unsigned char g = rgbVals[x][y][1];
-          unsigned char b = rgbVals[x][y][2];
+          unsigned char r = rgbVals[x*y*1];
+          unsigned char g = rgbVals[x*y*2];
+          unsigned char b = rgbVals[x*y*3];
           fwrite(&b, 1, 1, file);
           fwrite(&g, 1, 1, file);
           fwrite(&r, 1, 1, file);
@@ -528,8 +528,8 @@ int main (int argc, char ** argv)
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
   printf("Execution time for %s: %f seconds.\n",fileToRead, time);
 
-  // make_bitmap(drawing, fileToWrite);
-  
+  make_bitmap(drawing, fileToWrite);
+
   cudaFree(drawing);
 
   // printf("Triangles: %d, Spheres: %d, lights: %d\n", num_triangles, num_spheres, num_lights);
