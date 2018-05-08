@@ -181,8 +181,8 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
    int index = 0;
 
    // looks for an intersection between the input ray and a shape
-   for (int i = 0; i < *num_triangles; i++) if (intersectsTriangle(triangles[i], o, d, intersection, bcoords)) intersectTriangle = true, index = i;
-   for (int i = 0; i < *num_spheres; i++) if (intersectsSphere(spheres[i], o, d, intersection)) intersectSphere = true, index = i;
+   for (int i = 0; i < num_triangles[0]; i++) if (intersectsTriangle(triangles[i], o, d, intersection, bcoords)) intersectTriangle = true, index = i;
+   for (int i = 0; i < num_spheres[0]; i++) if (intersectsSphere(spheres[i], o, d, intersection)) intersectSphere = true, index = i;
 
    // returns background color if no intersections or if reach max recursive call
    if ((!intersectTriangle && !intersectSphere) || num > 2){
@@ -195,7 +195,7 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
    double l[3], n[3], n1[3], v[3], r[3], recursive_r[3], diffuse[3], specular[3], shiny;
 
    // iterates through each light in the scene
-   for (int j = 0; j < *num_lights; j++)
+   for (int j = 0; j < num_lights[0]; j++)
    {
       for (int i = 0; i < 3; i++)
       {
@@ -214,6 +214,7 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
       }
       else if (intersectTriangle)
       {
+        // trace_result[0] = 10;trace_result[1] = 10;trace_result[2] = 10; return;
          Triangle shape = triangles[index];
          for (int i = 0; i < 3; i++)
          {
@@ -232,9 +233,9 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
       normalize(normalized_pos);
 
       // checks if the shadow ray intersects with a shape
-      for (int i = 0; i < *num_spheres; i++)
+      for (int i = 0; i < num_spheres[0]; i++)
          if (intersectsSphere(spheres[i], shadowOrigin, normalized_pos, shadowIntersection)) shadow = true;
-      for (int i = 0; i < *num_triangles; i++)
+      for (int i = 0; i < num_triangles[0]; i++)
          if (intersectsTriangle(triangles[i], shadowOrigin, normalized_pos, shadowIntersection, other1)) shadow = true;
 
       normalize(l);
@@ -266,7 +267,7 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
    // trace(recursiveOrigin,recursive_r,++num,recurse_result,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
    for (int i = 0; i < 3; i++)
    {
-      trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i] ;//* recurse_result[i];
+      trace_result[i] = intersectTriangle; //(1 - specular[i]) * illumination[i] + specular[i] ;//* recurse_result[i];
    }
 }
 
@@ -359,12 +360,12 @@ int loadScene(char *argv,Triangle* triangles,Sphere* spheres,Light* lights,doubl
         parse_doubles(file,(char *)"spe:",t.v[j].color_specular);
         parse_shi(file,&t.v[j].shininess);
       }
-      if(*num_triangles == MAX_TRIANGLES)
+      if(num_triangles[0] == MAX_TRIANGLES)
       {
         printf("too many triangles, you should increase MAX_TRIANGLES!\n");
         exit(0);
       }
-      triangles[*num_triangles++] = t;
+      triangles[num_triangles[0]++] = t;
     }
     else if(strcasecmp(type,"sphere")==0)
     {
@@ -374,22 +375,22 @@ int loadScene(char *argv,Triangle* triangles,Sphere* spheres,Light* lights,doubl
       parse_doubles(file,(char *)"dif:",s.color_diffuse);
       parse_doubles(file,(char *)"spe:",s.color_specular);
       parse_shi(file,&s.shininess);
-      if(*num_spheres == MAX_SPHERES) {
+      if(num_spheres[0] == MAX_SPHERES) {
         printf("too many spheres, you should increase MAX_SPHERES!\n");
         exit(0);
       }
-      spheres[*num_spheres++] = s;
+      spheres[num_spheres[0]++] = s;
     }
     else if(strcasecmp(type,"light")==0)
     {
       // printf("found light\n");
       parse_doubles(file,(char *)"pos:",l.position);
       parse_doubles(file,(char *)"col:",l.color);
-      if(*num_lights == MAX_LIGHTS){
+      if(num_lights[0] == MAX_LIGHTS){
         printf("too many lights, you should increase MAX_LIGHTS!\n");
         exit(0);
       }
-      lights[*num_lights++] = l;
+      lights[num_lights[0]++] = l;
     }
     else{
       printf("unknown type in scene description:\n%s\n",type);
@@ -517,7 +518,10 @@ int main (int argc, char ** argv)
   cudaMallocManaged(&num_lights, sizeof(int));
 
   loadScene(fileToRead,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
-
+  // for(int i=0; i<num_triangles[0]; i++){
+  //   cout << triangles[i].v[0].position[0] << endl;
+  // }
+// cout << num_lights[0]<< endl;
   //measure how long it takes to render the image
   double time;
   struct timespec start, stop;
@@ -545,9 +549,9 @@ for(int i=0; i<WIDTH; i++)
   cudaFree(spheres);
   cudaFree(lights);
   cudaFree(ambient_light);
-  cudaFree(num_triangles);
-  cudaFree(num_spheres);
-  cudaFree(num_lights);
+  // cudaFree(num_triangles);
+  // cudaFree(num_spheres);
+  // cudaFree(num_lights);
 
   // printf("Triangles: %d, Spheres: %d, lights: %d\n", num_triangles, num_spheres, num_lights);
 }
