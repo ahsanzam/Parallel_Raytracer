@@ -3,7 +3,7 @@ EE 451
 Course Project: Raytracer 
 Serial Version
 
-Names: James Lee, Darwin Mendyke, Ahsan Zaman
+Names: Ahsan Zaman, James Lee, Darwin Mendyke
 */
 
 #include <stdlib.h>

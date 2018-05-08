@@ -184,8 +184,7 @@ bool intersectsTriangle(Triangle triangle, double o[3], double d[3], double (&in
 
 // Recursive function to perform ray tracing given a ray.
 __device__
-double* trace(double o[3], double d[3], int num)
-{
+void trace(double o[3], double d[3], int num, double* trace_result){
    bool intersectTriangle = false, intersectSphere = false;
    double bcoords[3], other1[3], intersection[3] = {1000.0, 1000.0, 1000.0};
    int index = 0;
@@ -196,9 +195,10 @@ double* trace(double o[3], double d[3], int num)
 
    // returns background color if no intersections or if reach max recursive call
    if ((!intersectTriangle && !intersectSphere) || num > 2){
-    double x__[3] = {1.0, 1.0, 1.0};
-    return x__;
-  }
+    trace_result[0] = 1.0;
+    trace_result[1] = 1.0;
+    trace_result[2] = 1.0;
+   }
 
    double illumination[3] = {ambient_light[0], ambient_light[1], ambient_light[2]};
    double l[3], n[3], n1[3], v[3], r[3], recursive_r[3], diffuse[3], specular[3], shiny;
@@ -238,14 +238,13 @@ double* trace(double o[3], double d[3], int num)
       double shadowIntersection[3] = {lights[j].position[0], lights[j].position[1], lights[j].position[2]};
       double shadowOrigin[3] = {intersection[0] + 0.001 * n[0], intersection[1] + 0.001 * n[1], intersection[2] + 0.001 * n[2]};
       bool shadow = false;
-      int shadowIndex = 0;
       normalize(normalized_pos);
 
       // checks if the shadow ray intersects with a shape
       for (int i = 0; i < num_spheres; i++)
-         if (intersectsSphere(spheres[i], shadowOrigin, normalized_pos, shadowIntersection)) shadow = true, shadowIndex = i;
+         if (intersectsSphere(spheres[i], shadowOrigin, normalized_pos, shadowIntersection)) shadow = true;
       for (int i = 0; i < num_triangles; i++)
-         if (intersectsTriangle(triangles[i], shadowOrigin, normalized_pos, shadowIntersection, other1)) shadow = true, shadowIndex = i;
+         if (intersectsTriangle(triangles[i], shadowOrigin, normalized_pos, shadowIntersection, other1)) shadow = true;
 
       normalize(l);
       normalize(n);
@@ -272,14 +271,12 @@ double* trace(double o[3], double d[3], int num)
    subtract(n1, v, recursive_r);
    double recursiveOrigin[3] = {intersection[0] + 0.01 * recursive_r[0], intersection[1] + 0.01 * recursive_r[1], intersection[2] + 0.01 * recursive_r[2]};
    normalize(recursive_r);
-   double* reflectedIllumination = trace(recursiveOrigin, recursive_r, ++num);
+   trace(recursiveOrigin, recursive_r, ++num, trace_result);
    double totalIllumination[3];
    for (int i = 0; i < 3; i++)
    {
-      totalIllumination[i] = (1 - specular[i]) * illumination[i] + specular[i] * reflectedIllumination[i];
+      trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i] * trace_result[i];
    }
-
-   return {totalIllumination};
 }
 
 // Iterates through each pixel on the window and generates a ray, which it passes to the tracer function
@@ -287,24 +284,22 @@ __global__
 void draw_scene(double* result)
 {
   // unsigned int x,y;
+
   double focalLength = 0.5 * WIDTH * sqrt(3.0) * 0.75;
   double origin[3] = {0, 0, 0};
-  //simple output
-  // for(x=0; x<WIDTH; x++){
-  //   result[x] = new double*[HEIGHT];
-    // for(y=0;y < HEIGHT;y++){
   int x = threadIdx.x + blockIdx.x * blockDim.x;
   int y = threadIdx.y + blockIdx.y * blockDim.y;
   double direction[3] = {x - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
   normalize(direction);
-  double * color = trace(origin, direction, 0);
-  result = new double[3]{255*color[0],255*color[1],255*color[2]};
-    // }
-  // }
-  // printf("Done!\n");
-  //fflush(stdout);
-  //done = true;
+  double* color = new double[3];
+  trace(origin, direction, 0, color);
+  result[x*y*1]=255*color[0];
+  result[x*y*2]=255*color[1];
+  result[x*y*3]=255*color[2];
+  // double* r[3] = new double[3]{255*color[0],255*color[1],255*color[2]};
+  // result[x][y] = r;
 }
+
 void parse_check(char *expected,char *found)
 {
   if(strcasecmp(expected,found))
@@ -516,21 +511,26 @@ int main (int argc, char ** argv)
 
   loadScene(fileToRead);
   double* drawing;
-	cudaMallocManaged(&drawing, sizeof(double));
+  cudaMallocManaged(&drawing, WIDTH*HEIGHT*sizeof(double));
+  // local_drawing()
+	// cudaMalloc(&local_drawing, WIDTH*HEIGHT*sizeof(double));
 
   //measure how long it takes to render the image
   double time;
   struct timespec start, stop;
+  int GRID_DIM = WIDTH;
+  int BLOCK_DIM = HEIGHT;
   if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
-  draw_scene<<<1,HEIGHT*WIDTH>>>(drawing);
-	cudaDeviceSynchronize();
+  // cudaMemcpy(drawing, local_drawing, WIDTH*HEIGHT*sizeof(double), cudaMemcpyDeviceToHost);
+  draw_scene<<<GRID_DIM, BLOCK_DIM>>>(drawing);
+  // cudaMemcpy(drawing, local_drawing, WIDTH*HEIGHT*sizeof(double), cudaMemcpyDeviceToHost);
   if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
   printf("Execution time for %s: %f seconds.\n",fileToRead, time);
 
   // make_bitmap(drawing, fileToWrite);
   
-	cudaFree(drawing);
+  cudaFree(drawing);
 
   // printf("Triangles: %d, Spheres: %d, lights: %d\n", num_triangles, num_spheres, num_lights);
 }
