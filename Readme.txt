@@ -28,4 +28,4 @@ To run GPU program on HPC:
 2. Request 1 gpu core from HPC
 	`salloc --gres=gpu:<number> sh`
 3. Run program
-	gpu <inputfile> <outputfile>
+	srun gpu <inputfile> <outputfile>

@@ -62,15 +62,6 @@ typedef struct _Light
   double color[3];
 } Light;
 
-__device__ Triangle triangles[MAX_TRIANGLES];
-__device__ Sphere spheres[MAX_SPHERES];
-__device__ Light lights[MAX_LIGHTS];
-__device__ double ambient_light[3];
-
-__device__ int num_triangles=0;
-__device__ int num_spheres=0;
-__device__ int num_lights=0;
-
 // Helper function to normalize a given vecter to a certain length, typically 1
 __device__
 void normalize(double p[3])
@@ -184,14 +175,14 @@ bool intersectsTriangle(Triangle triangle, double o[3], double d[3], double (&in
 
 // Recursive function to perform ray tracing given a ray.
 __device__
-void trace(double o[3], double d[3], int num, double* trace_result){
+void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triangles,Sphere* spheres,Light* lights,double* ambient_light,int* num_triangles,int* num_spheres,int* num_lights){
    bool intersectTriangle = false, intersectSphere = false;
    double bcoords[3], other1[3], intersection[3] = {1000.0, 1000.0, 1000.0};
    int index = 0;
 
    // looks for an intersection between the input ray and a shape
-   for (int i = 0; i < num_triangles; i++) if (intersectsTriangle(triangles[i], o, d, intersection, bcoords)) intersectTriangle = true, index = i;
-   for (int i = 0; i < num_spheres; i++) if (intersectsSphere(spheres[i], o, d, intersection)) intersectSphere = true, index = i;
+   for (int i = 0; i < *num_triangles; i++) if (intersectsTriangle(triangles[i], o, d, intersection, bcoords)) intersectTriangle = true, index = i;
+   for (int i = 0; i < *num_spheres; i++) if (intersectsSphere(spheres[i], o, d, intersection)) intersectSphere = true, index = i;
 
    // returns background color if no intersections or if reach max recursive call
    if ((!intersectTriangle && !intersectSphere) || num > 2){
@@ -204,7 +195,7 @@ void trace(double o[3], double d[3], int num, double* trace_result){
    double l[3], n[3], n1[3], v[3], r[3], recursive_r[3], diffuse[3], specular[3], shiny;
 
    // iterates through each light in the scene
-   for (int j = 0; j < num_lights; j++)
+   for (int j = 0; j < *num_lights; j++)
    {
       for (int i = 0; i < 3; i++)
       {
@@ -241,9 +232,9 @@ void trace(double o[3], double d[3], int num, double* trace_result){
       normalize(normalized_pos);
 
       // checks if the shadow ray intersects with a shape
-      for (int i = 0; i < num_spheres; i++)
+      for (int i = 0; i < *num_spheres; i++)
          if (intersectsSphere(spheres[i], shadowOrigin, normalized_pos, shadowIntersection)) shadow = true;
-      for (int i = 0; i < num_triangles; i++)
+      for (int i = 0; i < *num_triangles; i++)
          if (intersectsTriangle(triangles[i], shadowOrigin, normalized_pos, shadowIntersection, other1)) shadow = true;
 
       normalize(l);
@@ -271,7 +262,7 @@ void trace(double o[3], double d[3], int num, double* trace_result){
    subtract(n1, v, recursive_r);
    double recursiveOrigin[3] = {intersection[0] + 0.01 * recursive_r[0], intersection[1] + 0.01 * recursive_r[1], intersection[2] + 0.01 * recursive_r[2]};
    normalize(recursive_r);
-   trace(recursiveOrigin, recursive_r, ++num, trace_result);
+   trace(recursiveOrigin,recursive_r,++num,trace_result,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
    for (int i = 0; i < 3; i++)
    {
       trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i] * trace_result[i];
@@ -280,7 +271,7 @@ void trace(double o[3], double d[3], int num, double* trace_result){
 
 // Iterates through each pixel on the window and generates a ray, which it passes to the tracer function
 __global__
-void draw_scene(double* result)
+void draw_scene(double* result,Triangle* triangles,Sphere* spheres,Light* lights,double* ambient_light,int* num_triangles,int* num_spheres,int* num_lights)
 {
   // unsigned int x,y;
 
@@ -291,7 +282,7 @@ void draw_scene(double* result)
   double direction[3] = {x - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
   normalize(direction);
   double* color = new double[3];
-  trace(origin, direction, 0, color);
+  trace(origin,direction,0,color,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
   result[x*y*1]=255*color[0];
   result[x*y*2]=255*color[1];
   result[x*y*3]=255*color[2];
@@ -336,7 +327,7 @@ void parse_shi(FILE*file,double *shi)
   // printf("shi: %f\n",*shi);
 }
 
-int loadScene(char *argv)
+int loadScene(char *argv,Triangle* triangles,Sphere* spheres,Light* lights,double* ambient_light,int* num_triangles,int* num_spheres,int* num_lights)
 {
   FILE *file = fopen(argv,"r");
   int number_of_objects;
@@ -368,12 +359,12 @@ int loadScene(char *argv)
         parse_doubles(file,(char *)"spe:",t.v[j].color_specular);
         parse_shi(file,&t.v[j].shininess);
       }
-      if(num_triangles == MAX_TRIANGLES)
+      if(*num_triangles == MAX_TRIANGLES)
       {
         printf("too many triangles, you should increase MAX_TRIANGLES!\n");
         exit(0);
       }
-      triangles[num_triangles++] = t;
+      triangles[*num_triangles++] = t;
     }
     else if(strcasecmp(type,"sphere")==0)
     {
@@ -383,22 +374,22 @@ int loadScene(char *argv)
       parse_doubles(file,(char *)"dif:",s.color_diffuse);
       parse_doubles(file,(char *)"spe:",s.color_specular);
       parse_shi(file,&s.shininess);
-      if(num_spheres == MAX_SPHERES) {
+      if(*num_spheres == MAX_SPHERES) {
         printf("too many spheres, you should increase MAX_SPHERES!\n");
         exit(0);
       }
-      spheres[num_spheres++] = s;
+      spheres[*num_spheres++] = s;
     }
     else if(strcasecmp(type,"light")==0)
     {
       // printf("found light\n");
       parse_doubles(file,(char *)"pos:",l.position);
       parse_doubles(file,(char *)"col:",l.color);
-      if(num_lights == MAX_LIGHTS){
+      if(*num_lights == MAX_LIGHTS){
         printf("too many lights, you should increase MAX_LIGHTS!\n");
         exit(0);
       }
-      lights[num_lights++] = l;
+      lights[*num_lights++] = l;
     }
     else{
       printf("unknown type in scene description:\n%s\n",type);
@@ -481,7 +472,7 @@ void make_bitmap(double* rgbVals, char* fileToWrite)
           fwrite(&r, 1, 1, file);
           }
       }
-  fclose(file);   
+  fclose(file);
 }
 
 inline bool exists_file(char* name){
@@ -505,32 +496,27 @@ int main (int argc, char ** argv)
     cout << "Input file does not exist.\n" << endl;
     exit(0);
   }
-  // num_triangles=0;
-  // num_spheres=0;
-  // num_lights=0;
-  // Triangles triangles_[MAX_TRIANGLES];
-  // Spheres spheres_[MAX_SPHERES];
-  // Light lights_[MAX_LIGHTS];
 
   double* drawing;
-  
+  Triangle* triangles;
+  Sphere* spheres;
+  Light* lights;
+  double* ambient_light;
+  int* num_triangles;
+  int* num_spheres;
+  int* num_lights;
+
   cudaMallocManaged(&drawing, WIDTH*HEIGHT*3*sizeof(double));
-  // cudaMallocManaged(triangles, MAX_TRIANGLES*sizeof(struct Triangle));
-  // cudaMallocManaged(lights, MAX_LIGHTS*sizeof(struct Light));
-  // cudaMallocManaged(spheres, MAX_SPHERES*sizeof(struct Sphere));
-  // cudaMallocManaged(num_triangles, sizeof(int));
-  // cudaMallocManaged(num_spheres, sizeof(int));
-  // cudaMallocManaged(num_lights, sizeof(int));
-  // cudaMemcpy(triangles, triangles_, MAX_TRIANGLES, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(spheres, spheres_, MAX_SPHERES, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(lights, lights_, MAX_LIGHTS, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(ambient_light, ambient_light_, 3, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(num_triangles, num_triangles_, 1, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(num_spheres, num_spheres_, 1, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(num_lights, num_lights_, 1, cudaMemcpyDeviceToHost);
+  cudaMallocManaged(&triangles, MAX_TRIANGLES*sizeof(Triangle));
+  cudaMallocManaged(&spheres, MAX_SPHERES*sizeof(Sphere));
+  cudaMallocManaged(&lights, MAX_LIGHTS*sizeof(Light));
+  cudaMallocManaged(&ambient_light, 3*sizeof(double));
+  cudaMallocManaged(&num_triangles, sizeof(int));
+  cudaMallocManaged(&num_spheres, sizeof(int));
+  cudaMallocManaged(&num_lights, sizeof(int));
 
 
-  loadScene(fileToRead);
+  loadScene(fileToRead,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
 
   //measure how long it takes to render the image
   double time;
@@ -539,14 +525,14 @@ int main (int argc, char ** argv)
   int BLOCK_DIM = HEIGHT;
   if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
   // cudaMemcpy(drawing, local_drawing, WIDTH*HEIGHT*sizeof(double), cudaMemcpyDeviceToHost);
-  draw_scene<<<GRID_DIM, BLOCK_DIM>>>(drawing);
+  draw_scene<<<GRID_DIM, BLOCK_DIM>>>(drawing,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
   // cudaMemcpy(drawing, local_drawing, WIDTH*HEIGHT*sizeof(double), cudaMemcpyDeviceToHost);
   if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
   printf("Execution time for %s: %f seconds.\n",fileToRead, time);
 
-  // make_bitmap(drawing, fileToWrite);
-  
+  make_bitmap(drawing, fileToWrite);
+
   cudaFree(drawing);
 
   // printf("Triangles: %d, Spheres: %d, lights: %d\n", num_triangles, num_spheres, num_lights);
