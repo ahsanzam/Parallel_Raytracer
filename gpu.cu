@@ -62,14 +62,14 @@ typedef struct _Light
   double color[3];
 } Light;
 
-__device__ Triangle triangles[MAX_TRIANGLES];
-__device__ Sphere spheres[MAX_SPHERES];
-__device__ Light lights[MAX_LIGHTS];
-__device__ double ambient_light[3];
+__shared__ Triangle triangles[MAX_TRIANGLES];
+__shared__ Sphere spheres[MAX_SPHERES];
+__shared__ Light lights[MAX_LIGHTS];
+__shared__ double ambient_light[3];
 
-__device__ int num_triangles=0;
-__device__ int num_spheres=0;
-__device__ int num_lights=0;
+__shared__ int num_triangles;
+__shared__ int num_spheres;
+__shared__ int num_lights;
 
 // Helper function to normalize a given vecter to a certain length, typically 1
 __device__
@@ -272,7 +272,6 @@ void trace(double o[3], double d[3], int num, double* trace_result){
    double recursiveOrigin[3] = {intersection[0] + 0.01 * recursive_r[0], intersection[1] + 0.01 * recursive_r[1], intersection[2] + 0.01 * recursive_r[2]};
    normalize(recursive_r);
    trace(recursiveOrigin, recursive_r, ++num, trace_result);
-   double totalIllumination[3];
    for (int i = 0; i < 3; i++)
    {
       trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i] * trace_result[i];
@@ -296,8 +295,6 @@ void draw_scene(double* result)
   result[x*y*1]=255*color[0];
   result[x*y*2]=255*color[1];
   result[x*y*3]=255*color[2];
-  // double* r[3] = new double[3]{255*color[0],255*color[1],255*color[2]};
-  // result[x][y] = r;
 }
 
 void parse_check(char *expected,char *found)
@@ -411,7 +408,7 @@ int loadScene(char *argv)
   fclose(file);
   return 0;
 }
-void make_bitmap(double*** rgbVals, char* fileToWrite)
+void make_bitmap(double* rgbVals, char* fileToWrite)
 {
   typedef struct                       /**** BMP file header structure ****/
       {
@@ -476,9 +473,9 @@ void make_bitmap(double*** rgbVals, char* fileToWrite)
       for (int x = 0; x < bih.biWidth; x++)
           {
           /*compute some pixel values*/
-          unsigned char r = rgbVals[x][y][0];
-          unsigned char g = rgbVals[x][y][1];
-          unsigned char b = rgbVals[x][y][2];
+          unsigned char r = rgbVals[x*y*1];
+          unsigned char g = rgbVals[x*y*2];
+          unsigned char b = rgbVals[x*y*3];
           fwrite(&b, 1, 1, file);
           fwrite(&g, 1, 1, file);
           fwrite(&r, 1, 1, file);
@@ -508,7 +505,9 @@ int main (int argc, char ** argv)
     cout << "Input file does not exist.\n" << endl;
     exit(0);
   }
-
+  num_triangles=0;
+  num_spheres=0;
+  num_lights=0;
   loadScene(fileToRead);
   double* drawing;
   cudaMallocManaged(&drawing, WIDTH*HEIGHT*sizeof(double));
