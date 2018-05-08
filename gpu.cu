@@ -527,8 +527,8 @@ int main (int argc, char ** argv)
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
   printf("Execution time for %s: %f seconds.\n",fileToRead, time);
 
-  // make_bitmap(drawing, fileToWrite);
-  
+  make_bitmap(drawing, fileToWrite);
+
   cudaFree(drawing);
 
   // printf("Triangles: %d, Spheres: %d, lights: %d\n", num_triangles, num_spheres, num_lights);
