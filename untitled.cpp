@@ -62,14 +62,14 @@ typedef struct _Light
   double color[3];
 } Light;
 
-__device__ Triangle triangles[MAX_TRIANGLES];
-__device__ Sphere spheres[MAX_SPHERES];
-__device__ Light lights[MAX_LIGHTS];
-__device__ double ambient_light[3];
+__shared__ Triangle triangles[MAX_TRIANGLES];
+__shared__ Sphere spheres[MAX_SPHERES];
+__shared__ Light lights[MAX_LIGHTS];
+__shared__ double ambient_light[3];
 
-__device__ int num_triangles=0;
-__device__ int num_spheres=0;
-__device__ int num_lights=0;
+__shared__ int num_triangles;
+__shared__ int num_spheres;
+__shared__ int num_lights;
 
 // Helper function to normalize a given vecter to a certain length, typically 1
 __device__
@@ -481,7 +481,7 @@ void make_bitmap(double* rgbVals, char* fileToWrite)
           fwrite(&r, 1, 1, file);
           }
       }
-  fclose(file);   
+  fclose(file);
 }
 
 inline bool exists_file(char* name){
@@ -505,32 +505,14 @@ int main (int argc, char ** argv)
     cout << "Input file does not exist.\n" << endl;
     exit(0);
   }
-  // num_triangles=0;
-  // num_spheres=0;
-  // num_lights=0;
-  // Triangles triangles_[MAX_TRIANGLES];
-  // Spheres spheres_[MAX_SPHERES];
-  // Light lights_[MAX_LIGHTS];
-
-  double* drawing;
-  
-  cudaMallocManaged(&drawing, WIDTH*HEIGHT*3*sizeof(double));
-  // cudaMallocManaged(triangles, MAX_TRIANGLES*sizeof(struct Triangle));
-  // cudaMallocManaged(lights, MAX_LIGHTS*sizeof(struct Light));
-  // cudaMallocManaged(spheres, MAX_SPHERES*sizeof(struct Sphere));
-  // cudaMallocManaged(num_triangles, sizeof(int));
-  // cudaMallocManaged(num_spheres, sizeof(int));
-  // cudaMallocManaged(num_lights, sizeof(int));
-  // cudaMemcpy(triangles, triangles_, MAX_TRIANGLES, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(spheres, spheres_, MAX_SPHERES, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(lights, lights_, MAX_LIGHTS, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(ambient_light, ambient_light_, 3, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(num_triangles, num_triangles_, 1, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(num_spheres, num_spheres_, 1, cudaMemcpyDeviceToHost);
-  // cudaMemcpy(num_lights, num_lights_, 1, cudaMemcpyDeviceToHost);
-
-
+  num_triangles=0;
+  num_spheres=0;
+  num_lights=0;
   loadScene(fileToRead);
+  double* drawing;
+  // cudaMallocManaged(&drawing, WIDTH*HEIGHT*sizeof(double));
+  // local_drawing()
+	// cudaMalloc(&local_drawing, WIDTH*HEIGHT*sizeof(double));
 
   //measure how long it takes to render the image
   double time;

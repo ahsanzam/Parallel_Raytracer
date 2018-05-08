@@ -12,7 +12,6 @@ mpi:
 	mpiCC -std=c++11 -O3 -lm parallel_mpi.cpp -o mpi
 
 gpu:
-	source /usr/usc/cuda/default/setup.sh
 	nvcc --std=c++11 -arch=sm_20 gpu.cu -o gpu
 
 clean:
