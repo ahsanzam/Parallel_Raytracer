@@ -189,6 +189,7 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
     trace_result[0] = 1.0;
     trace_result[1] = 1.0;
     trace_result[2] = 1.0;
+    return;
    }
 
    double illumination[3] = {ambient_light[0], ambient_light[1], ambient_light[2]};
@@ -214,7 +215,6 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
       }
       else if (intersectTriangle)
       {
-        // trace_result[0] = 10;trace_result[1] = 10;trace_result[2] = 10; return;
          Triangle shape = triangles[index];
          for (int i = 0; i < 3; i++)
          {
@@ -245,6 +245,7 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
       subtract(n1, l, r);
       normalize(r); // calculates the reflection ray
 
+// trace_result[0]=v[0]; if(j==2) return;
       // if there is no shadow at the point, calculates illumination using phong shading equation
       if (!shadow)
       {
@@ -255,6 +256,8 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
             illumination[i] += lights[j].color[i] * (a + b);
             illumination[i] = fmin(illumination[i], 1.0);
          }
+      // trace_result[i]=illumination[i];
+      // return;
       }
    }
    // return illumination;
@@ -267,11 +270,18 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
    // trace(recursiveOrigin,recursive_r,++num,recurse_result,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
    for (int i = 0; i < 3; i++)
    {
-      trace_result[i] = intersectTriangle; //(1 - specular[i]) * illumination[i] + specular[i] ;//* recurse_result[i];
+      trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i];//* recurse_result[i];
    }
+   // for(int i=0; i<3; i++){
+    // trace_result[i] = illumination[i];
+    // double y_ = (v[0] * r[0]) + (v[1] * r[1]) + (v[2] * r[2]);
+    // if(intersectSphere)
+    //   trace_result[i] = 2; //illumination[i];
+    // else if(intersectTriangle) trace_result[i] = 5;
+    // else trace_result[i] = 4;
+   // }
 }
 
-// Iterates through each pixel on the window and generates a ray, which it passes to the tracer function
 __global__ void draw_scene(double* result,Triangle* triangles,Sphere* spheres,Light* lights,double* ambient_light,int* num_triangles,int* num_spheres,int* num_lights)
 {
   double focalLength = 0.5 * WIDTH * sqrt(3.0) * 0.75;
@@ -284,9 +294,9 @@ __global__ void draw_scene(double* result,Triangle* triangles,Sphere* spheres,Li
   int MAX_SIZE = WIDTH*HEIGHT*3;
   trace(origin,direction,0,color,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
   // color[0]=1.0;color[1]=1.0;color[2]=1.0;
-  result[(HEIGHT*WIDTH*y + WIDTH*x + 0)%MAX_SIZE]=color[0];
-  result[(HEIGHT*WIDTH*y + WIDTH*x + 1)%MAX_SIZE]=255*color[1];
-  result[(HEIGHT*WIDTH*y + WIDTH*x + 2)%MAX_SIZE]=255*color[2];
+  result[(WIDTH*y + x)*3 + 0]=color[0]*255;
+  result[(WIDTH*y + x)*3 + 1]=color[1]*255;
+  result[(WIDTH*y + x)*3 + 2]=color[2]*255;
 }
 
 void parse_check(char *expected,char *found)
@@ -466,9 +476,9 @@ void make_bitmap(double* rgbVals, char* fileToWrite)
       for (int x = 0; x < bih.biWidth; x++)
           {
           /*compute some pixel values*/
-          unsigned char r = rgbVals[(WIDTH*HEIGHT*x + WIDTH*y + 0)%MAX_SIZE];
-          unsigned char g = rgbVals[(WIDTH*HEIGHT*x + WIDTH*y + 1)%MAX_SIZE];
-          unsigned char b = rgbVals[(WIDTH*HEIGHT*x + WIDTH*y + 2)%MAX_SIZE];
+          unsigned char r = rgbVals[(WIDTH*y + x)*3 + 0];
+          unsigned char g = rgbVals[(WIDTH*y + x)*3 + 1];
+          unsigned char b = rgbVals[(WIDTH*y + x)*3 + 2];
           fwrite(&b, 1, 1, file);
           fwrite(&g, 1, 1, file);
           fwrite(&r, 1, 1, file);
@@ -525,18 +535,20 @@ int main (int argc, char ** argv)
   //measure how long it takes to render the image
   double time;
   struct timespec start, stop;
-  int GRID_DIM = WIDTH;
-  int BLOCK_DIM = HEIGHT;
+  // int GRID_DIM = WIDTH;
+  // int BLOCK_DIM = HEIGHT;
   if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
+  dim3 BLOCK_DIM(4,4);
+  dim3 GRID_DIM(WIDTH/4,HEIGHT/4);
   // cudaMemcpy(drawing, local_drawing, WIDTH*HEIGHT*sizeof(double), cudaMemcpyDeviceToHost);
   draw_scene<<<GRID_DIM, BLOCK_DIM>>>(drawing,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
   cudaDeviceSynchronize();
-  int MAX_SIZE = WIDTH*HEIGHT*3;
-for(int i=0; i<WIDTH; i++)
-  for(int j=0; j<HEIGHT; j++){
-    cout << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 0)%MAX_SIZE] << " " << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 1)%MAX_SIZE] << " " << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 2)%MAX_SIZE] << endl;
-  }
-  cout << triangles[0].v[0].position[0] << endl;
+  // int MAX_SIZE = WIDTH*HEIGHT*3;
+// for(int i=0; i<WIDTH; i++)
+//   for(int j=0; j<HEIGHT; j++){
+//     cout << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 0)%MAX_SIZE] << " " << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 1)%MAX_SIZE] << " " << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 2)%MAX_SIZE] << endl;
+//   }
+  // cout << triangles[0].v[0].position[0] << endl;
 
   if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
