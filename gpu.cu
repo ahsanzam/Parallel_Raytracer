@@ -245,7 +245,6 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
       subtract(n1, l, r);
       normalize(r); // calculates the reflection ray
 
-// trace_result[0]=v[0]; if(j==2) return;
       // if there is no shadow at the point, calculates illumination using phong shading equation
       if (!shadow)
       {
@@ -256,8 +255,6 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
             illumination[i] += lights[j].color[i] * (a + b);
             illumination[i] = fmin(illumination[i], 1.0);
          }
-      // trace_result[i]=illumination[i];
-      // return;
       }
    }
    // return illumination;
@@ -272,14 +269,6 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
    {
       trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i];//* recurse_result[i];
    }
-   // for(int i=0; i<3; i++){
-    // trace_result[i] = illumination[i];
-    // double y_ = (v[0] * r[0]) + (v[1] * r[1]) + (v[2] * r[2]);
-    // if(intersectSphere)
-    //   trace_result[i] = 2; //illumination[i];
-    // else if(intersectTriangle) trace_result[i] = 5;
-    // else trace_result[i] = 4;
-   // }
 }
 
 __global__ void draw_scene(double* result,Triangle* triangles,Sphere* spheres,Light* lights,double* ambient_light,int* num_triangles,int* num_spheres,int* num_lights)
@@ -293,7 +282,6 @@ __global__ void draw_scene(double* result,Triangle* triangles,Sphere* spheres,Li
   double color[3] = {0,0,0};
   int MAX_SIZE = WIDTH*HEIGHT*3;
   trace(origin,direction,0,color,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
-  // color[0]=1.0;color[1]=1.0;color[2]=1.0;
   result[(WIDTH*y + x)*3 + 0]=color[0]*255;
   result[(WIDTH*y + x)*3 + 1]=color[1]*255;
   result[(WIDTH*y + x)*3 + 2]=color[2]*255;
@@ -528,10 +516,7 @@ int main (int argc, char ** argv)
   cudaMallocManaged(&num_lights, sizeof(int));
 
   loadScene(fileToRead,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
-  // for(int i=0; i<num_triangles[0]; i++){
-  //   cout << triangles[i].v[0].position[0] << endl;
-  // }
-// cout << num_lights[0]<< endl;
+
   //measure how long it takes to render the image
   double time;
   struct timespec start, stop;
@@ -540,15 +525,8 @@ int main (int argc, char ** argv)
   if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
   dim3 BLOCK_DIM(4,4);
   dim3 GRID_DIM(WIDTH/4,HEIGHT/4);
-  // cudaMemcpy(drawing, local_drawing, WIDTH*HEIGHT*sizeof(double), cudaMemcpyDeviceToHost);
   draw_scene<<<GRID_DIM, BLOCK_DIM>>>(drawing,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
   cudaDeviceSynchronize();
-  // int MAX_SIZE = WIDTH*HEIGHT*3;
-// for(int i=0; i<WIDTH; i++)
-//   for(int j=0; j<HEIGHT; j++){
-//     cout << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 0)%MAX_SIZE] << " " << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 1)%MAX_SIZE] << " " << drawing[(WIDTH*HEIGHT*i + WIDTH*j + 2)%MAX_SIZE] << endl;
-//   }
-  // cout << triangles[0].v[0].position[0] << endl;
 
   if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
   time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
@@ -561,9 +539,7 @@ int main (int argc, char ** argv)
   cudaFree(spheres);
   cudaFree(lights);
   cudaFree(ambient_light);
-  // cudaFree(num_triangles);
-  // cudaFree(num_spheres);
-  // cudaFree(num_lights);
-
-  // printf("Triangles: %d, Spheres: %d, lights: %d\n", num_triangles, num_spheres, num_lights);
+  cudaFree(num_triangles);
+  cudaFree(num_spheres);
+  cudaFree(num_lights);
 }
