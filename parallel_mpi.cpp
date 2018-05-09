@@ -572,10 +572,6 @@ int main (int argc, char ** argv)
 
   //get rid of processors that we're not using 
   if(mpi_rank >= num_processes){
-    // int x = 0;
-    // int total;
-    // MPI_Reduce(&x, &total, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-
     MPI_Finalize();
     return 0;
   }
@@ -609,12 +605,6 @@ int main (int argc, char ** argv)
     printf("Execution time for %s: %f seconds with %d processors.\n",fileToRead, time, num_processes);
     make_bitmap(drawingR_, drawingG_, drawingB_, fileToWrite);
   }
-
-  // int total;
-  // int x = (WIDTH/num_processes);
-  // MPI_Reduce(&x, &total, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-  // if(mpi_rank==0)
-  //   printf("TOTAL: %d, num_processes: %d, WIDTH: %d\n",total, num_processes, WIDTH);
 
   delete [] drawingR;
   delete [] drawingG;

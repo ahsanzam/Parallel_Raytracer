@@ -37,7 +37,7 @@ def make_graph(test):
     
 
 
-# make_graph('siggraph_MPI_Myrinet')
+make_graph('siggraph_MPI_Myrinet')
 # make_graph('spheres_MPI_Myrinet')
 # make_graph('table_MPI_Myrinet')
 

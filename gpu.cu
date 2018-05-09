@@ -676,61 +676,61 @@ inline bool exists_file(char* name){
 
 int main (int argc, char ** argv)
 {
-  if (argc<3 || argc > 3){
-    printf ("usage: %s <scenefile> <bmp_name>\n", argv[0]);
-    exit(0);
+  for(int i=1; i<17; i++){
+    if (argc<3 || argc > 3){
+      printf ("usage: %s <scenefile> <bmp_name>\n", argv[0]);
+      exit(0);
+    }
+    char* fileToRead = argv[1];
+    char* fileToWrite = argv[2];
+
+    if(!exists_file(fileToRead)){
+      cout << "Input file does not exist.\n" << endl;
+      exit(0);
+    }
+
+    double* drawing;
+    Triangle* triangles;
+    Sphere* spheres;
+    Light* lights;
+    double* ambient_light;
+    int* num_triangles;
+    int* num_spheres;
+    int* num_lights;
+
+    cudaMallocManaged(&drawing, WIDTH*HEIGHT*3*sizeof(double));
+    cudaMallocManaged(&triangles, MAX_TRIANGLES*sizeof(Triangle));
+    cudaMallocManaged(&spheres, MAX_SPHERES*sizeof(Sphere));
+    cudaMallocManaged(&lights, MAX_LIGHTS*sizeof(Light));
+    cudaMallocManaged(&ambient_light, 3*sizeof(double));
+    cudaMallocManaged(&num_triangles, sizeof(int));
+    cudaMallocManaged(&num_spheres, sizeof(int));
+    cudaMallocManaged(&num_lights, sizeof(int));
+
+    loadScene(fileToRead,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
+
+    //measure how long it takes to render the image
+    double time;
+    struct timespec start, stop;
+    if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
+    dim3 BLOCK_DIM(i,i);
+    dim3 GRID_DIM(WIDTH/i,HEIGHT/i);
+    draw_scene<<<GRID_DIM, BLOCK_DIM>>>(drawing,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
+    cudaDeviceSynchronize();
+
+    if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
+    time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
+    printf("Execution time for %s with %d x %d blocks: %f seconds.\n",fileToRead, time, i, i);
+
+    make_bitmap(drawing, fileToWrite);
+
+    cudaFree(drawing);
+    cudaFree(triangles);
+    cudaFree(spheres);
+    cudaFree(lights);
+    cudaFree(ambient_light);
+    cudaFree(num_triangles);
+    cudaFree(num_spheres);
+    cudaFree(num_lights);
   }
-  char* fileToRead = argv[1];
-  char* fileToWrite = argv[2];
-
-  if(!exists_file(fileToRead)){
-    cout << "Input file does not exist.\n" << endl;
-    exit(0);
-  }
-
-  double* drawing;
-  Triangle* triangles;
-  Sphere* spheres;
-  Light* lights;
-  double* ambient_light;
-  int* num_triangles;
-  int* num_spheres;
-  int* num_lights;
-
-  cudaMallocManaged(&drawing, WIDTH*HEIGHT*3*sizeof(double));
-  cudaMallocManaged(&triangles, MAX_TRIANGLES*sizeof(Triangle));
-  cudaMallocManaged(&spheres, MAX_SPHERES*sizeof(Sphere));
-  cudaMallocManaged(&lights, MAX_LIGHTS*sizeof(Light));
-  cudaMallocManaged(&ambient_light, 3*sizeof(double));
-  cudaMallocManaged(&num_triangles, sizeof(int));
-  cudaMallocManaged(&num_spheres, sizeof(int));
-  cudaMallocManaged(&num_lights, sizeof(int));
-
-  loadScene(fileToRead,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
-
-  //measure how long it takes to render the image
-  double time;
-  struct timespec start, stop;
-  // int GRID_DIM = WIDTH;
-  // int BLOCK_DIM = HEIGHT;
-  if( clock_gettime(CLOCK_REALTIME, &start) == -1) { perror("clock gettime");}
-  dim3 BLOCK_DIM(4,4);
-  dim3 GRID_DIM(WIDTH/4,HEIGHT/4);
-  draw_scene<<<GRID_DIM, BLOCK_DIM>>>(drawing,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
-  cudaDeviceSynchronize();
-
-  if( clock_gettime( CLOCK_REALTIME, &stop) == -1 ) { perror("clock gettime");}
-  time = (stop.tv_sec - start.tv_sec)+ (double)(stop.tv_nsec - start.tv_nsec)/1e9;
-  printf("Execution time for %s: %f seconds.\n",fileToRead, time);
-
-  make_bitmap(drawing, fileToWrite);
-
-  cudaFree(drawing);
-  cudaFree(triangles);
-  cudaFree(spheres);
-  cudaFree(lights);
-  cudaFree(ambient_light);
-  cudaFree(num_triangles);
-  cudaFree(num_spheres);
-  cudaFree(num_lights);
 }
