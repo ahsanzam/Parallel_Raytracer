@@ -176,6 +176,7 @@ bool intersectsTriangle(Triangle triangle, double o[3], double d[3], double (&in
 // Recursive function to perform ray tracing given a ray.
 __device__
 void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triangles,Sphere* spheres,Light* lights,double* ambient_light,int* num_triangles,int* num_spheres,int* num_lights){
+
    bool intersectTriangle = false, intersectSphere = false;
    double bcoords[3], other1[3], intersection[3] = {1000.0, 1000.0, 1000.0};
    int index = 0;

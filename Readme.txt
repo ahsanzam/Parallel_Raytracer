@@ -26,6 +26,6 @@ To run GPU program on HPC:
 2. Make GPU program
 	`make gpu`
 2. Request 1 gpu core from HPC
-	`salloc --gres=gpu:<number> sh`
+	`salloc --gres=gpu:1 sh` 
 3. Run program
 	srun gpu <inputfile> <outputfile>
