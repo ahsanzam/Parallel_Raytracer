@@ -172,6 +172,199 @@ bool intersectsTriangle(Triangle triangle, double o[3], double d[3], double (&in
    return false;
 }
 
+// Recursive function to perform ray tracing given a ray.
+__device__
+void trace3(double o[3],double d[3],int num,double* trace_result,Triangle* triangles,Sphere* spheres,Light* lights,double* ambient_light,int* num_triangles,int* num_spheres,int* num_lights){
+   bool intersectTriangle = false, intersectSphere = false;
+   double bcoords[3], other1[3], intersection[3] = {1000.0, 1000.0, 1000.0};
+   int index = 0;
+
+   // looks for an intersection between the input ray and a shape
+   for (int i = 0; i < num_triangles[0]; i++) if (intersectsTriangle(triangles[i], o, d, intersection, bcoords)) intersectTriangle = true, index = i;
+   for (int i = 0; i < num_spheres[0]; i++) if (intersectsSphere(spheres[i], o, d, intersection)) intersectSphere = true, index = i;
+
+   // returns background color if no intersections or if reach max recursive call
+   if ((!intersectTriangle && !intersectSphere) || num > 2){
+    trace_result[0] = 1.0;
+    trace_result[1] = 1.0;
+    trace_result[2] = 1.0;
+    return;
+   }
+
+   double illumination[3] = {ambient_light[0], ambient_light[1], ambient_light[2]};
+   double l[3], n[3], n1[3], v[3], r[3], recursive_r[3], diffuse[3], specular[3], shiny;
+
+   // iterates through each light in the scene
+   for (int j = 0; j < num_lights[0]; j++)
+   {
+      for (int i = 0; i < 3; i++)
+      {
+         l[i] = lights[j].position[i] - intersection[i];
+         v[i] = o[i] - intersection[i];
+      }
+      if (intersectSphere)
+      {
+         for (int i = 0; i < 3; i++)
+         {
+            n[i] = intersection[i] - spheres[index].position[i];
+            diffuse[i] = spheres[index].color_diffuse[i];
+            specular[i] = spheres[index].color_specular[i];
+         }
+         shiny = spheres[index].shininess;
+      }
+      else if (intersectTriangle)
+      {
+         Triangle shape = triangles[index];
+         for (int i = 0; i < 3; i++)
+         {
+            n[i] = shape.v[0].normal[i] * bcoords[2] + shape.v[1].normal[i] * bcoords[0] + shape.v[2].normal[i] * bcoords[1];
+            diffuse[i] = shape.v[0].color_diffuse[i] * bcoords[2] + shape.v[1].color_diffuse[i] * bcoords[0] + shape.v[2].color_diffuse[i] * bcoords[1];
+            specular[i] = shape.v[0].color_specular[i] * bcoords[2] + shape.v[1].color_specular[i] * bcoords[0] + shape.v[2].color_specular[i] * bcoords[1];
+         }
+         shiny = shape.v[0].shininess * bcoords[2] + shape.v[1].shininess * bcoords[0] + shape.v[2].shininess * bcoords[1];
+      }
+
+      // initializes the shadow ray from the intersection point
+      double normalized_pos[3] = {lights[j].position[0] - intersection[0], lights[j].position[1] - intersection[1], lights[j].position[2] - intersection[2]};
+      double shadowIntersection[3] = {lights[j].position[0], lights[j].position[1], lights[j].position[2]};
+      double shadowOrigin[3] = {intersection[0] + 0.001 * n[0], intersection[1] + 0.001 * n[1], intersection[2] + 0.001 * n[2]};
+      bool shadow = false;
+      normalize(normalized_pos);
+
+      // checks if the shadow ray intersects with a shape
+      for (int i = 0; i < num_spheres[0]; i++)
+         if (intersectsSphere(spheres[i], shadowOrigin, normalized_pos, shadowIntersection)) shadow = true;
+      for (int i = 0; i < num_triangles[0]; i++)
+         if (intersectsTriangle(triangles[i], shadowOrigin, normalized_pos, shadowIntersection, other1)) shadow = true;
+
+      normalize(l);
+      normalize(n);
+      normalize(v);
+      multiply(n, 2 * dot(l, n), n1);
+      subtract(n1, l, r);
+      normalize(r); // calculates the reflection ray
+
+      // if there is no shadow at the point, calculates illumination using phong shading equation
+      if (!shadow)
+      {
+         for (int i = 0; i < 3; i++)
+         {
+            double a = diffuse[i] * fmax(0.0, dot(l, n));
+            double b = specular[i] * pow(fmax(0.0, dot(v, r)), shiny);
+            illumination[i] += lights[j].color[i] * (a + b);
+            illumination[i] = fmin(illumination[i], 1.0);
+         }
+      }
+   }
+   // uncomment this code below to recursively call tracer function on reflection ray
+   multiply(n, 2 * dot(v, n), n1);
+   subtract(n1, v, recursive_r);
+   //double recursiveOrigin[3] = {intersection[0] + 0.01 * recursive_r[0], intersection[1] + 0.01 * recursive_r[1], intersection[2] + 0.01 * recursive_r[2]};
+   normalize(recursive_r);
+   //double recurse_result[3] = {0,0,0};
+   // trace(recursiveOrigin,recursive_r,++num,recurse_result,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
+   for (int i = 0; i < 3; i++)
+   {
+      trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i];//* recurse_result[i];
+   }
+}
+
+// Recursive function to perform ray tracing given a ray.
+__device__
+void trace2(double o[3],double d[3],int num,double* trace_result,Triangle* triangles,Sphere* spheres,Light* lights,double* ambient_light,int* num_triangles,int* num_spheres,int* num_lights){
+   bool intersectTriangle = false, intersectSphere = false;
+   double bcoords[3], other1[3], intersection[3] = {1000.0, 1000.0, 1000.0};
+   int index = 0;
+
+   // looks for an intersection between the input ray and a shape
+   for (int i = 0; i < num_triangles[0]; i++) if (intersectsTriangle(triangles[i], o, d, intersection, bcoords)) intersectTriangle = true, index = i;
+   for (int i = 0; i < num_spheres[0]; i++) if (intersectsSphere(spheres[i], o, d, intersection)) intersectSphere = true, index = i;
+
+   // returns background color if no intersections or if reach max recursive call
+   if ((!intersectTriangle && !intersectSphere) || num > 2){
+    trace_result[0] = 1.0;
+    trace_result[1] = 1.0;
+    trace_result[2] = 1.0;
+    return;
+   }
+
+   double illumination[3] = {ambient_light[0], ambient_light[1], ambient_light[2]};
+   double l[3], n[3], n1[3], v[3], r[3], recursive_r[3], diffuse[3], specular[3], shiny;
+
+   // iterates through each light in the scene
+   for (int j = 0; j < num_lights[0]; j++)
+   {
+      for (int i = 0; i < 3; i++)
+      {
+         l[i] = lights[j].position[i] - intersection[i];
+         v[i] = o[i] - intersection[i];
+      }
+      if (intersectSphere)
+      {
+         for (int i = 0; i < 3; i++)
+         {
+            n[i] = intersection[i] - spheres[index].position[i];
+            diffuse[i] = spheres[index].color_diffuse[i];
+            specular[i] = spheres[index].color_specular[i];
+         }
+         shiny = spheres[index].shininess;
+      }
+      else if (intersectTriangle)
+      {
+         Triangle shape = triangles[index];
+         for (int i = 0; i < 3; i++)
+         {
+            n[i] = shape.v[0].normal[i] * bcoords[2] + shape.v[1].normal[i] * bcoords[0] + shape.v[2].normal[i] * bcoords[1];
+            diffuse[i] = shape.v[0].color_diffuse[i] * bcoords[2] + shape.v[1].color_diffuse[i] * bcoords[0] + shape.v[2].color_diffuse[i] * bcoords[1];
+            specular[i] = shape.v[0].color_specular[i] * bcoords[2] + shape.v[1].color_specular[i] * bcoords[0] + shape.v[2].color_specular[i] * bcoords[1];
+         }
+         shiny = shape.v[0].shininess * bcoords[2] + shape.v[1].shininess * bcoords[0] + shape.v[2].shininess * bcoords[1];
+      }
+
+      // initializes the shadow ray from the intersection point
+      double normalized_pos[3] = {lights[j].position[0] - intersection[0], lights[j].position[1] - intersection[1], lights[j].position[2] - intersection[2]};
+      double shadowIntersection[3] = {lights[j].position[0], lights[j].position[1], lights[j].position[2]};
+      double shadowOrigin[3] = {intersection[0] + 0.001 * n[0], intersection[1] + 0.001 * n[1], intersection[2] + 0.001 * n[2]};
+      bool shadow = false;
+      normalize(normalized_pos);
+
+      // checks if the shadow ray intersects with a shape
+      for (int i = 0; i < num_spheres[0]; i++)
+         if (intersectsSphere(spheres[i], shadowOrigin, normalized_pos, shadowIntersection)) shadow = true;
+      for (int i = 0; i < num_triangles[0]; i++)
+         if (intersectsTriangle(triangles[i], shadowOrigin, normalized_pos, shadowIntersection, other1)) shadow = true;
+
+      normalize(l);
+      normalize(n);
+      normalize(v);
+      multiply(n, 2 * dot(l, n), n1);
+      subtract(n1, l, r);
+      normalize(r); // calculates the reflection ray
+
+      // if there is no shadow at the point, calculates illumination using phong shading equation
+      if (!shadow)
+      {
+         for (int i = 0; i < 3; i++)
+         {
+            double a = diffuse[i] * fmax(0.0, dot(l, n));
+            double b = specular[i] * pow(fmax(0.0, dot(v, r)), shiny);
+            illumination[i] += lights[j].color[i] * (a + b);
+            illumination[i] = fmin(illumination[i], 1.0);
+         }
+      }
+   }
+   // uncomment this code below to recursively call tracer function on reflection ray
+   multiply(n, 2 * dot(v, n), n1);
+   subtract(n1, v, recursive_r);
+   double recursiveOrigin[3] = {intersection[0] + 0.01 * recursive_r[0], intersection[1] + 0.01 * recursive_r[1], intersection[2] + 0.01 * recursive_r[2]};
+   normalize(recursive_r);
+   double recurse_result[3] = {0,0,0};
+   trace3(recursiveOrigin,recursive_r,++num,recurse_result,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
+   for (int i = 0; i < 3; i++)
+   {
+      trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i] * recurse_result[i];
+   }
+}
 
 // Recursive function to perform ray tracing given a ray.
 __device__
@@ -258,17 +451,16 @@ void trace(double o[3],double d[3],int num,double* trace_result,Triangle* triang
          }
       }
    }
-   // return illumination;
    // uncomment this code below to recursively call tracer function on reflection ray
    multiply(n, 2 * dot(v, n), n1);
    subtract(n1, v, recursive_r);
    double recursiveOrigin[3] = {intersection[0] + 0.01 * recursive_r[0], intersection[1] + 0.01 * recursive_r[1], intersection[2] + 0.01 * recursive_r[2]};
    normalize(recursive_r);
    double recurse_result[3] = {0,0,0};
-   // trace(recursiveOrigin,recursive_r,++num,recurse_result,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
+   trace2(recursiveOrigin,recursive_r,++num,recurse_result,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
    for (int i = 0; i < 3; i++)
    {
-      trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i];//* recurse_result[i];
+      trace_result[i] = (1 - specular[i]) * illumination[i] + specular[i] * recurse_result[i];
    }
 }
 
@@ -281,7 +473,6 @@ __global__ void draw_scene(double* result,Triangle* triangles,Sphere* spheres,Li
   double direction[3] = {x - ((double) WIDTH / 2.0), y - ((double) HEIGHT / 2.0), -1 * focalLength};
   normalize(direction);
   double color[3] = {0,0,0};
-  int MAX_SIZE = WIDTH*HEIGHT*3;
   trace(origin,direction,0,color,triangles,spheres,lights,ambient_light,num_triangles,num_spheres,num_lights);
   result[(WIDTH*y + x)*3 + 0]=color[0]*255;
   result[(WIDTH*y + x)*3 + 1]=color[1]*255;
@@ -459,7 +650,6 @@ void make_bitmap(double* rgbVals, char* fileToWrite)
   fwrite(&bih, 1, sizeof(bih), file);
 
   /*Write bitmap*/
-  int MAX_SIZE = WIDTH*HEIGHT*3;
   for (int y=0; y<bih.biHeight; y++)
       {
       for (int x = 0; x < bih.biWidth; x++)
